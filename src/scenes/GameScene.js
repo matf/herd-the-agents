@@ -211,7 +211,11 @@ export class GameScene extends Phaser.Scene {
   // --- Ctrl-C ---
 
   swing() {
-    if (this.ending || !this.player.swing(this.time.now, this.run.reach)) return;
+    if (this.ending || !this.player.canSwing(this.time.now)) return;
+    // Turn towards the nearest thing worth hitting, so a tap is enough on a phone.
+    const targets = [...this.bugs, ...this.agents.filter((a) => a.derailed)];
+    this.player.aimAt(targets, this.run.reach);
+    this.player.swing(this.time.now, this.run.reach);
     const reaches = (o) => this.player.reaches(o.x, o.y, this.run.reach);
     let hit = false;
     for (const bug of this.bugs.filter(reaches)) {

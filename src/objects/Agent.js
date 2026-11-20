@@ -233,7 +233,7 @@ export class Agent extends Phaser.GameObjects.Sprite {
     this.say(pick(LINES.merge), COLOR.ok);
     this.scene.onMerge(this, old);
     if (this.mode === 'done') return; // that PR finished the sprint
-    this.claim(this.scene.freeDesk());
+    this.claim(this.scene.freeDesk() ?? old);
     this.goToDesk();
   }
 

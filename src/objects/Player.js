@@ -43,9 +43,27 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
-  // Swing Ctrl-C. False while the last swing is still cooling down.
+  // False while the last swing is still cooling down.
+  canSwing(now) {
+    return now >= this.nextSwing;
+  }
+
+  // Look at the nearest of these things, if one is close enough to hit.
+  aimAt(things, reachFactor) {
+    let best = null;
+    let bestDist = REACH * reachFactor;
+    for (const thing of things) {
+      const dist = Phaser.Math.Distance.Between(this.x, this.y, thing.x, thing.y);
+      if (dist <= bestDist && dist > 1) {
+        best = thing;
+        bestDist = dist;
+      }
+    }
+    if (best) this.facing.set(best.x - this.x, best.y - this.y).normalize();
+  }
+
+  // Swing Ctrl-C in the direction you look.
   swing(now, reachFactor) {
-    if (now < this.nextSwing) return false;
     this.nextSwing = now + SWING_COOLDOWN;
     const angle = this.facing.angle();
     const reach = REACH * reachFactor;
@@ -59,7 +77,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.arc.arc(0, 0, reach - 1, angle - ARC * 0.8, angle + ARC * 0.8);
     this.arc.strokePath();
     this.scene.tweens.add({ targets: this.arc, alpha: 0, duration: 160 });
-    return true;
   }
 
   // Would a swing hit something at x, y?

@@ -94,6 +94,14 @@ export function randomFloor(grid) {
 //   hazards    [{ kind: 'prod' | 'main', c, r, approach: { c, r } }]  what rogue agents run to
 //   obstacles  [{ c, r, kind }]  racks, shelves, crates and plants
 export function generateRoom(deskCount) {
+  // Now and then the desks don't all fit between each other; then start over.
+  for (let tries = 0; ; tries++) {
+    const room = tryRoom(deskCount);
+    if (room.desks.length === deskCount || tries > 30) return room;
+  }
+}
+
+function tryRoom(deskCount) {
   const grid = new Uint8Array(COLS * ROWS);
   for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS; r++) {
     if (c === 0 || r === 0 || c === COLS - 1 || r === ROWS - 1) grid[key(c, r)] = WALL;
