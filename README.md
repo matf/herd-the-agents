@@ -5,6 +5,8 @@ agents are supposed to merge PRs. They will not make it easy.
 
 **Play it: https://matf.github.io/herd-the-agents/** (phone or computer)
 
+<img src="docs/gameplay.gif" width="270" alt="Gameplay: the engineer runs between derailing agents"> <img src="docs/screenshot.png" width="270" alt="A rogue agent force-pushing main while another one hallucinates">
+
 
 ## How to play
 

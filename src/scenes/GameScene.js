@@ -311,7 +311,7 @@ export class GameScene extends Phaser.Scene {
     const run = this.run;
     run.hearts--;
     play(this, reason === 'incident' ? 'incident' : 'hurt');
-    this.cameras.main.shake(220, 0.006);
+    this.cameras.main.shake(220, 0.0015);
     this.toast(text, COLOR.rogue);
     if (run.hearts <= 0) this.gameOver(reason);
   }
@@ -362,7 +362,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.pause();
     this.tweens.killAll();
     play(this, 'over');
-    this.cameras.main.shake(400, 0.008);
+    this.cameras.main.shake(400, 0.002);
     this.player.setTint(COLOR.rogue);
     this.time.delayedCall(1300, () => this.scene.start('gameover'));
   }
