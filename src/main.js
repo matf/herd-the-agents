@@ -14,7 +14,8 @@ function startGame() {
     parent: 'game',
     width: WIDTH * ZOOM,
     height: HEIGHT * ZOOM,
-    pixelArt: true,
+    antialias: true, // the art is drawn smooth, at four times its size (src/art.js)
+    roundPixels: false,
     backgroundColor: '#0b0f1a',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     input: { activePointers: 3 }, // several fingers at once on phones

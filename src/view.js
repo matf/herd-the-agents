@@ -1,5 +1,5 @@
-// The game world is 270x480 pixels of pixel art (a phone held upright), but the canvas is ZOOM
-// times bigger and every camera zooms in. Pixel art looks the same, while text is drawn sharp.
+// The game world is 270x480 "game pixels" (a phone held upright), but the canvas is ZOOM times
+// bigger and every camera zooms in, so the art and the text are drawn sharp.
 export const WIDTH = 270;
 export const HEIGHT = 480;
 export const ZOOM = 4;
@@ -7,7 +7,7 @@ export const ZOOM = 4;
 export const FONT = 'KenPixel, monospace'; // public/assets/fonts/kenpixel.woff2, loaded in style.css
 export const FONT_MINI = '"KenPixel Mini", KenPixel, monospace';
 
-// One palette for everything. The sprites are white (Kenney's 1-Bit Pack) and get tinted.
+// One palette for the texts, buttons and effects. (The art has its own colours, see src/art.js.)
 export const COLOR = {
   bg: 0x0b0f1a,
   panel: 0x131a2b,

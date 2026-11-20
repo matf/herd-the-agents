@@ -1,29 +1,39 @@
-import Phaser from 'phaser';
-import { T } from '../tiles.js';
+import { addArt } from '../art.js';
+import { depthAt, toScreen } from '../iso.js';
 import { findPath, isFloor, tileAt, tileX, tileY } from '../room.js';
 
 export const BUG_COLOR = 0xff7ac8;
 const HATCH_TIME = 0.7; // seconds a new bug sits still, so one never bites you out of nowhere
 const REPATH_EVERY = 0.45; // seconds between looking for the way to you again
+const SIZE = 0.25; // the pictures are drawn four times as big as they are shown (ART_SCALE)
 
 // A bug made by a hallucinating agent. It crawls after you around the furniture.
-export class Bug extends Phaser.GameObjects.Sprite {
+// x, y are grid pixels; `view` is the picture on screen.
+export class Bug {
   constructor(scene, x, y) {
-    super(scene, x, y, 'tiles', T.bug[0]);
-    scene.add.existing(this);
-    this.setTint(BUG_COLOR).setDepth(7).setScale(0);
-    this.play('bug-crawl');
+    this.scene = scene;
+    this.x = x;
+    this.y = y;
+    this.view = addArt(scene, 0, 0, 'bug-0').setScale(0);
     this.hatching = HATCH_TIME;
     this.repath = 0;
     this.path = [];
-    scene.tweens.add({ targets: this, scale: 1, duration: HATCH_TIME * 1000, ease: 'Back.out' });
+    scene.tweens.add({ targets: this.view, scale: SIZE, duration: HATCH_TIME * 1000, ease: 'Back.out' });
+    this.place(0);
   }
 
   get harmless() {
     return this.hatching > 0;
   }
 
-  update(dt, player, speed) {
+  place(time) {
+    const at = toScreen(this.x, this.y);
+    this.view.setPosition(at.x, at.y + 2).setDepth(depthAt(this.x, this.y));
+    this.view.setTexture(Math.floor(time / 140) % 2 ? 'bug-1' : 'bug-0');
+  }
+
+  update(dt, time, player, speed) {
+    this.place(time);
     if (this.hatching > 0) {
       this.hatching -= dt;
       return;
@@ -46,9 +56,16 @@ export class Bug extends Phaser.GameObjects.Sprite {
     }
     const d = Math.hypot(tx - this.x, ty - this.y);
     if (d > 0.5) {
-      this.x += ((tx - this.x) / d) * speed * dt;
-      this.y += ((ty - this.y) / d) * speed * dt;
-      this.setFlipX(tx < this.x);
+      const dx = ((tx - this.x) / d) * speed * dt;
+      const dy = ((ty - this.y) / d) * speed * dt;
+      this.x += dx;
+      this.y += dy;
+      if (Math.abs(dx - dy) > 0.01) this.view.setFlipX(dx - dy < 0); // left on screen
     }
+  }
+
+  destroy() {
+    this.scene.tweens.killTweensOf(this.view);
+    this.view.destroy();
   }
 }

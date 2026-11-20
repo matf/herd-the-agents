@@ -1,93 +1,81 @@
 import Phaser from 'phaser';
-import { T } from '../tiles.js';
-import { COLOR } from '../view.js';
+import { addArt, setArt } from '../art.js';
+import { HH, HW, depthAt, toGridDirection, toScreen } from '../iso.js';
+import { TILE } from '../room.js';
 
-const SPEED = 72; // pixels per second
-const SWING_COOLDOWN = 260; // milliseconds between two Ctrl-Cs
-const REACH = 25; // how far Ctrl-C reaches, in pixels
-const ARC = Phaser.Math.DegToRad(75); // ...to both sides of where you look
-const CLOSE = 11; // this close it hits in every direction
+const SPEED = 68; // grid pixels per second
+const COOLDOWN = 260; // milliseconds between two actions
+const REACH = 24; // how far an action reaches, in grid pixels (a tile is 16)
 const SAFE_TIME = 1300; // milliseconds you can't be hurt again after a bug bit you
 const KNOCKBACK = 190;
 
-// You: the engineer. Walks with Arcade physics so the walls and desks stop you.
+// You: the engineer. Walks with Arcade physics on the square grid so the walls and desks stop
+// you; what you see is `view`, drawn where the grid position lands on screen.
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
-    super(scene, x, y, 'tiles', T.hero);
+    super(scene, x, y, 'pixel');
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    this.setTint(COLOR.hero).setDepth(6);
-    this.body.setSize(8, 8).setOffset(4, 7);
-    this.facing = new Phaser.Math.Vector2(0, -1); // where the last step went
-    this.nextSwing = 0;
+    this.setVisible(false);
+    this.body.setSize(8, 8);
+    this.nextAction = 0;
     this.safeUntil = 0;
     this.pushed = 0; // seconds a knockback still lasts
-    this.arc = scene.add.graphics().setDepth(8);
+    this.walking = false;
+    this.shadow = addArt(scene, 0, 0, 'shadow').setAlpha(0.3).setDepth(50);
+    this.view = addArt(scene, 0, 0, 'hero');
+    this.ring = scene.add.graphics().setDepth(51);
+    this.icon = addArt(scene, 0, 0, 'icon-approve').setDepth(6000).setVisible(false);
+    this.place(0);
   }
 
-  // dx, dy: -1 to 1, like a joystick.
+  // dx, dy: -1 to 1 on screen, like a joystick.
   move(dx, dy, factor, dt) {
     if (this.pushed > 0) {
       this.pushed -= dt;
       return;
     }
-    const len = Math.hypot(dx, dy);
-    if (len > 1) {
-      dx /= len;
-      dy /= len;
+    const push = Math.min(1, Math.hypot(dx, dy));
+    this.walking = push > 0.2;
+    if (push === 0) {
+      this.setVelocity(0, 0);
+      return;
     }
-    this.setVelocity(dx * SPEED * factor, dy * SPEED * factor);
-    if (len > 0.2) {
-      this.facing.set(dx, dy).normalize();
-      if (Math.abs(dx) > 0.2) this.setFlipX(dx < 0);
-    }
+    const direction = toGridDirection(dx, dy);
+    this.setVelocity(direction.x * SPEED * factor * push, direction.y * SPEED * factor * push);
+    if (Math.abs(dx) > 0.2) this.view.setFlipX(dx < 0);
   }
 
-  // False while the last swing is still cooling down.
-  canSwing(now) {
-    return now >= this.nextSwing;
+  // Put the picture where the grid position is on screen.
+  place(time) {
+    const at = toScreen(this.x, this.y);
+    const hop = this.walking ? Math.abs(Math.sin(time / 90)) * 2 : 0;
+    this.shadow.setPosition(at.x, at.y);
+    this.view.setPosition(at.x, at.y + 2 - hop).setDepth(depthAt(this.x, this.y));
+    this.screen = at;
   }
 
-  // Look at the nearest of these things, if one is close enough to hit.
-  aimAt(things, reachFactor) {
-    let best = null;
-    let bestDist = REACH * reachFactor;
-    for (const thing of things) {
-      const dist = Phaser.Math.Distance.Between(this.x, this.y, thing.x, thing.y);
-      if (dist <= bestDist && dist > 1) {
-        best = thing;
-        bestDist = dist;
-      }
-    }
-    if (best) this.facing.set(best.x - this.x, best.y - this.y).normalize();
+  // False while the last action is still cooling down.
+  canAct(now) {
+    return now >= this.nextAction;
   }
 
-  // Swing Ctrl-C in the direction you look.
-  swing(now, reachFactor) {
-    this.nextSwing = now + SWING_COOLDOWN;
-    const angle = this.facing.angle();
-    const reach = REACH * reachFactor;
-    this.arc.clear().setAlpha(1).setPosition(this.x, this.y);
-    this.arc.lineStyle(3, 0xffffff, 1);
-    this.arc.beginPath();
-    this.arc.arc(0, 0, reach - 5, angle - ARC, angle + ARC);
-    this.arc.strokePath();
-    this.arc.lineStyle(1, COLOR.hero, 1);
-    this.arc.beginPath();
-    this.arc.arc(0, 0, reach - 1, angle - ARC * 0.8, angle + ARC * 0.8);
-    this.arc.strokePath();
-    this.scene.tweens.add({ targets: this.arc, alpha: 0, duration: 160 });
+  // Show the action: a ring on the floor as wide as it reaches, and its icon over your head.
+  act(now, action, reachFactor) {
+    this.nextAction = now + COOLDOWN;
+    const reach = (REACH * reachFactor) / TILE;
+    const at = this.screen;
+    this.ring.clear().setPosition(at.x, at.y).setAlpha(1).setScale(0.3);
+    this.ring.fillStyle(action.color, 0.25).fillEllipse(0, 0, reach * HW * 2.8, reach * HH * 2.8);
+    this.ring.lineStyle(1.5, action.color, 1).strokeEllipse(0, 0, reach * HW * 2.8, reach * HH * 2.8);
+    this.scene.tweens.add({ targets: this.ring, scale: 1, alpha: 0, duration: 240, ease: 'Cubic.out' });
+    setArt(this.icon, action.icon).setTint(action.color).setPosition(at.x, at.y - 28).setAlpha(1).setVisible(true);
+    this.scene.tweens.add({ targets: this.icon, y: at.y - 38, alpha: 0, duration: 380, ease: 'Cubic.out' });
   }
 
-  // Would a swing hit something at x, y?
+  // Does an action reach something at grid position x, y?
   reaches(x, y, reachFactor) {
-    const dx = x - this.x;
-    const dy = y - this.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist <= CLOSE) return true;
-    if (dist > REACH * reachFactor) return false;
-    const off = Phaser.Math.Angle.Wrap(Math.atan2(dy, dx) - this.facing.angle());
-    return Math.abs(off) <= ARC;
+    return Math.hypot(x - this.x, y - this.y) <= REACH * reachFactor;
   }
 
   // Bitten by a bug at x, y. False while you are still blinking from the last bite.
@@ -98,12 +86,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setVelocity(away.x, away.y);
     this.pushed = 0.12;
     this.scene.tweens.add({
-      targets: this,
+      targets: this.view,
       alpha: 0.25,
       duration: 90,
       yoyo: true,
       repeat: Math.floor(SAFE_TIME / 180) - 1,
-      onComplete: () => this.setAlpha(1),
+      onComplete: () => this.view.setAlpha(1),
     });
     return true;
   }

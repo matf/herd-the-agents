@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { T } from '../tiles.js';
+import { makeArt } from '../art.js';
 import { newRun } from '../run.js';
 
-// Loads the one sprite sheet and makes the textures and animations the other scenes share.
+// Makes the textures the other scenes share. Nearly all of the art is drawn in code (src/art.js);
+// only the little icons on the upgrade cards come from a sprite sheet.
 export class PreloadScene extends Phaser.Scene {
   constructor() {
     super('preload');
@@ -14,16 +15,12 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   create() {
-    // A white 2x2 dot for particles; they get tinted.
-    const g = this.add.graphics();
-    g.fillStyle(0xffffff).fillRect(0, 0, 2, 2).generateTexture('pixel', 2, 2).destroy();
+    this.textures.get('tiles').setFilter(Phaser.Textures.FilterMode.NEAREST); // pixel art stays crisp
+    makeArt(this);
 
-    this.anims.create({
-      key: 'bug-crawl',
-      frames: this.anims.generateFrameNumbers('tiles', { frames: [T.bug[0], T.bug[1]] }),
-      frameRate: 7,
-      repeat: -1,
-    });
+    // A white dot for particles; they get tinted.
+    const g = this.add.graphics();
+    g.fillStyle(0xffffff).fillCircle(4, 4, 4).generateTexture('pixel', 8, 8).destroy();
 
     this.registry.set('run', newRun());
     this.scene.start('title');

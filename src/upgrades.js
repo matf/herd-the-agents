@@ -14,7 +14,7 @@ export const UPGRADES = [
   {
     key: 'keyboard',
     name: 'Mechanical keyboard',
-    text: 'Ctrl-C reaches 30% further.',
+    text: 'All three actions reach 30% further.',
     icon: T.sword,
     color: COLOR.ink,
     apply: (run) => (run.reach *= 1.3),

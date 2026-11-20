@@ -1,0 +1,74 @@
+<!doctype html>
+<!-- Dev only: shows everything src/art.js draws. Open /art-preview.html?sprint=2 on the dev server. -->
+<meta charset="utf-8" />
+<title>Art preview</title>
+<style>
+  body { margin: 0; background: #0b0f1a; }
+  canvas { display: block; width: 1080px; height: 1920px; }
+</style>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script type="module">
+  import { ART_SCALE, SPRITES, drawRoom } from '/src/art.js';
+  import { tileScreen } from '/src/iso.js';
+
+  const sprint = Number(new URLSearchParams(location.search).get('sprint') || 1);
+  const ctx = document.getElementById('c').getContext('2d');
+  ctx.scale(ART_SCALE, ART_SCALE);
+  ctx.fillStyle = '#0b0f1a';
+  ctx.fillRect(0, 0, 270, 480);
+  drawRoom(ctx, sprint);
+
+  const things = [];
+  const put = (key, x, y, order = y) => things.push({ key, x, y, order });
+  const onTile = (key, c, r, dx = 0, dy = 0) => {
+    const p = tileScreen(c, r);
+    put(key, p.x + dx, p.y + dy, p.y);
+    return p;
+  };
+  const person = (key, c, r, signKey) => {
+    const p = tileScreen(c, r);
+    put('shadow', p.x, p.y, p.y - 0.5);
+    put(key, p.x, p.y + 2, p.y);
+    if (signKey) put(signKey, p.x, p.y - 23, 1000);
+  };
+
+  put('door-closed', tileScreen(6, 1).x + 6, tileScreen(6, 1).y - 4 - 0, -100); // = toScreen(6*16+8, 16)
+  { const p = tileScreen(9, 1); put('door-open', p.x + 6, p.y - 4, -100); }
+  onTile('prod', 1, 11);
+  onTile('main', 11, 1);
+  onTile('desk', 3, 3); person('robot', 3, 4);
+  onTile('desk', 7, 4); person('robot-ask', 7, 5, 'sign-ask');
+  onTile('desk', 4, 7);
+  onTile('plant', 1, 1);
+  onTile('rack', 2, 6);
+  onTile('boxes', 9, 5);
+  onTile('cooler', 5, 1);
+  onTile('plant', 10, 9);
+  person('robot-loop', 6, 8, 'sign-loop');
+  person('robot-halluc', 9, 8, 'sign-halluc');
+  person('robot-rogue', 3, 10, 'sign-rogue');
+  person('robot-happy', 8, 10);
+  person('hero', 6, 10);
+  onTile('bug-0', 10, 6, 0, 3);
+  onTile('bug-1', 5, 5, 0, 3);
+
+  // everything in a row below the room
+  let x = 12;
+  let y = 330;
+  for (const [key, s] of Object.entries(SPRITES)) {
+    if (x + s.w > 262) { x = 12; y += 46; }
+    if (key.startsWith('icon-')) { ctx.fillStyle = '#39446e'; ctx.fillRect(x, y - s.h, s.w, s.h); }
+    things.push({ key, x: x + s.ax, y: y - s.h + s.ay, order: 5000 });
+    x += s.w + 5;
+  }
+
+  things.sort((a, b) => a.order - b.order);
+  for (const t of things) {
+    const s = SPRITES[t.key];
+    ctx.save();
+    ctx.translate(t.x - s.ax, t.y - s.ay);
+    s.draw(ctx);
+    ctx.restore();
+  }
+  window.done = true;
+</script>

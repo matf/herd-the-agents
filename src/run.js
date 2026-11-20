@@ -19,6 +19,7 @@ export function newRun() {
     fixes: 0, // agents put back on task
     squashed: 0, // bugs squashed
     incidents: 0,
+    powerups: 0, // power-ups picked up
     perks: [], // keys of the upgrades picked so far
     hinted: [], // misbehaviours that were explained already
     burning: 0, // k tokens per second right now
@@ -41,14 +42,17 @@ export function newRun() {
 export function sprintRules(sprint) {
   return {
     goal: Math.min(3 + sprint, 9), // PRs to merge before the door opens
-    agents: Math.min(6, 2 + Math.floor(sprint / 2)),
+    agents: Math.min(5, 2 + Math.floor(sprint / 2)),
     workTime: 5.5 + 0.2 * Math.min(sprint, 10), // seconds at the desk for one PR
-    derailEvery: Math.max(0.42, 1 - 0.07 * (sprint - 1)), // multiplies the time between derails
+    derailEvery: Math.max(0.45, 1 - 0.06 * (sprint - 1)), // multiplies the time between derails
     // Which misbehaviours can happen: they are introduced one sprint at a time.
     kinds: sprint === 1 ? ['ask', 'loop'] : sprint === 2 ? ['ask', 'loop', 'halluc'] : ['ask', 'loop', 'halluc', 'rogue'],
-    bugSpeed: Math.min(58, 36 + 2.5 * sprint), // pixels per second
-    maxBugs: Math.min(9, 3 + Math.floor(sprint / 2)),
-    rogueSpeed: Math.min(60, 38 + 2 * sprint),
+    bugSpeed: Math.min(50, 30 + 2 * sprint), // grid pixels per second
+    maxBugs: Math.min(7, 3 + Math.floor(sprint / 2)),
+    rogueSpeed: Math.min(48, 28 + 2 * sprint),
+    // Long runs have to end, too: from sprint 7 on everything burns a little more every sprint,
+    // and from sprint 10 on (where the rest stops getting harder) it grows faster and faster.
+    burn: 1 + 0.06 * Math.max(0, sprint - 6) + 0.015 * Math.max(0, sprint - 9) ** 2,
   };
 }
 

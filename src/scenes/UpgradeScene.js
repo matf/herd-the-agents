@@ -6,7 +6,7 @@ import { SPRINT_BONUS } from '../run.js';
 import { offerUpgrades } from '../upgrades.js';
 
 const CARD = { width: 236, height: 70, top: 176, gap: 80 };
-const WAIT = 450; // milliseconds before a tap counts, so a late Ctrl-C tap doesn't pick a card
+const WAIT = 450; // milliseconds before a tap counts, so a late tap on an action button doesn't pick a card
 
 // Between two sprints: pick one of three upgrades. Lies on top of the paused game.
 export class UpgradeScene extends Phaser.Scene {

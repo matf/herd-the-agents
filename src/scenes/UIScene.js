@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { T } from '../tiles.js';
+import { addArt, setArt } from '../art.js';
 import { COLOR, WIDTH, addText, css, setupCamera } from '../view.js';
 import { isMuted, toggleMute } from '../sound.js';
 import { sprintRules } from '../run.js';
@@ -20,23 +20,22 @@ export class UIScene extends Phaser.Scene {
 
     this.hearts = [];
     for (let i = 0; i < this.run.maxHearts; i++) {
-      this.hearts.push(this.add.image(22 + i * 14, 12, 'tiles', T.heart).setTint(COLOR.rogue));
+      this.hearts.push(addArt(this, 22 + i * 13, 12, 'heart').setScale(0.3));
     }
-    this.shield = this.add.image(22 + this.run.maxHearts * 14 + 2, 12, 'tiles', T.shield).setTint(COLOR.ok);
+    this.shield = addArt(this, 22 + this.run.maxHearts * 13 + 2, 12, 'shield');
     this.sprint = addText(this, WIDTH / 2 + 22, 12, '', { size: 8 }).setOrigin(0.5);
 
-    this.mute = this.add
-      .image(WIDTH - 23, 12, 'tiles', T.soundOn)
-      .setTint(COLOR.dim)
-      .setInteractive({ useHandCursor: true })
+    this.mute = addArt(this, WIDTH - 23, 12, 'sound-on')
+      .setScale(0.3)
+      // a hit area bigger than the picture, so a finger finds it (in texture pixels)
+      .setInteractive({ hitArea: new Phaser.Geom.Rectangle(-40, -40, 120, 120), hitAreaCallback: Phaser.Geom.Rectangle.Contains, useHandCursor: true })
       .on('pointerdown', () => {
         toggleMute();
         this.showMute();
       });
-    this.mute.input.hitArea.setTo(-6, -6, 28, 28); // easier to hit with a finger
     this.showMute();
 
-    this.add.image(21, BAR.y, 'tiles', T.coin).setTint(COLOR.loop).setScale(0.75);
+    addArt(this, 21, BAR.y, 'coin');
     this.add.rectangle(BAR.x, BAR.y, BAR.width, BAR.height, COLOR.panel).setOrigin(0, 0.5).setStrokeStyle(1, COLOR.line);
     this.bar = this.add.rectangle(BAR.x, BAR.y, BAR.width, BAR.height, COLOR.ok).setOrigin(0, 0.5);
     this.tokens = addText(this, BAR.x + BAR.width + 5, BAR.y, '', { size: 8 }).setOrigin(0, 0.5);
@@ -46,7 +45,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   showMute() {
-    this.mute.setFrame(isMuted() ? T.soundOff : T.soundOn);
+    setArt(this.mute, isMuted() ? 'sound-off' : 'sound-on');
   }
 
   update(time) {
@@ -60,9 +59,7 @@ export class UIScene extends Phaser.Scene {
     const now = [run.hearts, run.ciReady, run.sprint, Math.ceil(run.budget), run.sprintPrs].join();
     if (now === this.shown) return;
     this.shown = now;
-    this.hearts.forEach((heart, i) => {
-      heart.setFrame(i < run.hearts ? T.heart : T.heartEmpty).setTint(i < run.hearts ? COLOR.rogue : COLOR.line);
-    });
+    this.hearts.forEach((heart, i) => setArt(heart, i < run.hearts ? 'heart' : 'heart-empty'));
     this.shield.setVisible(run.ciReady);
     this.sprint.setText(`SPRINT ${run.sprint}`);
     this.tokens.setText(`${Math.ceil(run.budget)}k`).setColor(css(color));

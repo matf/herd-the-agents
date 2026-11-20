@@ -1,20 +1,21 @@
-// Every sprint is one random room on a grid of 16-pixel tiles.
+// Every sprint is one random room on a square grid of 16-pixel tiles. This is the room as the
+// rules see it, from straight above; src/iso.js turns it into the diamond you see on screen.
 export const TILE = 16;
-export const COLS = 15;
-export const ROWS = 20;
-export const ROOM_X = 15; // where the grid starts on screen
-export const ROOM_Y = 46;
+export const COLS = 13; // 11 floor tiles and a wall on both sides
+export const ROWS = 13;
+export const ROOM_X = 0; // where the grid starts
+export const ROOM_Y = 0;
 
 export const FLOOR = 0;
 export const WALL = 1;
 export const SOLID = 2; // desks, racks, the database... anything you can't walk through
 
-export const DOOR = { c: 7, r: 0 };
-export const START = { c: 7, r: ROWS - 3 };
+export const DOOR = { c: 6, r: 0 }; // in the middle of the back wall on the right
+export const START = { c: COLS - 3, r: ROWS - 3 }; // near the front corner
 
-const MIN_OBSTACLES = 3;
-const MAX_OBSTACLES = 7;
-const DESK_SPACING = 3; // desks are at least this many tiles apart
+const MIN_OBSTACLES = 2;
+const MAX_OBSTACLES = 4;
+const DESK_SPACING = 2; // desks are at least this many tiles apart
 
 // The middle of a tile, in game pixels.
 export const tileX = (c) => ROOM_X + c * TILE + TILE / 2;
@@ -90,14 +91,14 @@ export function randomFloor(grid) {
 
 // A new room with `deskCount` desks. Returns:
 //   grid       FLOOR / WALL / SOLID for every tile
-//   desks      [{ c, r, work: { c, r } }]  the agent stands on `work`, right below its desk
+//   desks      [{ c, r, work: { c, r } }]  the agent stands on `work`, one row in front of its desk
 //   hazards    [{ kind: 'prod' | 'main', c, r, approach: { c, r } }]  what rogue agents run to
-//   obstacles  [{ c, r, kind }]  racks, shelves, crates and plants
+//   obstacles  [{ c, r, kind }]  plants, racks, boxes and water coolers
 export function generateRoom(deskCount) {
   // Now and then the desks don't all fit between each other; then start over.
   for (let tries = 0; ; tries++) {
     const room = tryRoom(deskCount);
-    if (room.desks.length === deskCount || tries > 30) return room;
+    if (room.desks.length === deskCount || tries > 200) return room;
   }
 }
 
@@ -114,28 +115,24 @@ function tryRoom(deskCount) {
   reserve(DOOR.c, 1);
   reserve(DOOR.c, 2);
 
-  // The production database and the main branch sit in two different corners.
+  // The production database and the main branch sit in the left and the right corner.
   const corners = [
-    { c: 1, r: 1, side: 1 },
-    { c: COLS - 2, r: 1, side: -1 },
-    { c: 1, r: ROWS - 2, side: 1 },
-    { c: COLS - 2, r: ROWS - 2, side: -1 },
+    { c: 1, r: ROWS - 2, side: 1, back: -1 },
+    { c: COLS - 2, r: 1, side: -1, back: 1 },
   ];
-  const first = rand(4);
-  const second = (first + 1 + rand(3)) % 4;
-  const hazards = [first, second].map((i, n) => {
-    const { c, r, side } = corners[i];
+  if (rand(2)) corners.reverse();
+  const hazards = corners.map(({ c, r, side, back }, n) => {
     grid[key(c, r)] = SOLID;
     reserve(c + side, r);
-    reserve(c, r === 1 ? 2 : r - 1);
+    reserve(c, r + back);
     return { kind: n === 0 ? 'prod' : 'main', c, r, approach: { c: c + side, r } };
   });
 
-  // Desks, each with a free tile below it for the agent.
+  // Desks, each with a free tile in front of it for the agent.
   const desks = [];
   for (let tries = 0; desks.length < deskCount && tries < 400; tries++) {
     const c = 2 + rand(COLS - 4);
-    const r = 3 + rand(ROWS - 8);
+    const r = 2 + rand(ROWS - 6);
     if (reserved.has(key(c, r)) || reserved.has(key(c, r + 1))) continue;
     if (!isFloor(grid, c, r) || !isFloor(grid, c, r + 1)) continue;
     if (desks.some((d) => Math.max(Math.abs(d.c - c), Math.abs(d.r - r)) < DESK_SPACING)) continue;
@@ -145,7 +142,7 @@ function tryRoom(deskCount) {
   }
 
   // A few things in the way.
-  const kinds = ['rack', 'rack', 'shelf', 'crate', 'crate', 'cactus'];
+  const kinds = ['plant', 'plant', 'rack', 'boxes', 'cooler'];
   const obstacles = [];
   const wanted = MIN_OBSTACLES + rand(MAX_OBSTACLES - MIN_OBSTACLES + 1);
   for (let tries = 0; obstacles.length < wanted && tries < 200; tries++) {

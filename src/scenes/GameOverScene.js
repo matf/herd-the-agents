@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { T } from '../tiles.js';
+import { addArt } from '../art.js';
 import { COLOR, FONT_MINI, HEIGHT, WIDTH, addButton, addText, setupCamera } from '../view.js';
 import { IS_TOUCH } from '../touch.js';
 import { loadSave, writeSave } from '../save.js';
@@ -7,12 +7,12 @@ import { play } from '../sound.js';
 import { newRun, rankFor } from '../run.js';
 
 const URL = 'https://matf.github.io/herd-the-agents/';
-const WAIT = 600; // milliseconds before keys count, so a last Ctrl-C doesn't restart right away
+const WAIT = 600; // milliseconds before keys count, so a last key press doesn't restart right away
 
 const REASON = {
-  budget: { icon: T.coin, color: COLOR.loop, text: 'The token budget is burned.', short: 'the token budget ran out' },
-  incident: { icon: T.warning, color: COLOR.rogue, text: 'Prod is down. An agent did it.', short: 'an agent took down prod' },
-  bugs: { icon: T.bug[0], color: 0xff7ac8, text: 'The bugs got you.', short: 'the bugs got me' },
+  budget: { icon: 'coin', color: COLOR.loop, text: 'The token budget is burned.', short: 'the token budget ran out' },
+  incident: { icon: 'prod', color: COLOR.rogue, text: 'Prod is down. An agent did it.', short: 'an agent took down prod' },
+  bugs: { icon: 'bug-0', color: 0xff7ac8, text: 'The bugs got you.', short: 'the bugs got me' },
 };
 
 export class GameOverScene extends Phaser.Scene {
@@ -31,7 +31,7 @@ export class GameOverScene extends Phaser.Scene {
     if (isBest) writeSave({ ...save, bestPrs: run.prs, bestSprint: run.sprint });
 
     addText(this, WIDTH / 2, 50, 'RUN OVER', { size: 24, color: COLOR.rogue }).setOrigin(0.5);
-    this.add.image(WIDTH / 2, 84, 'tiles', reason.icon).setTint(reason.color).setScale(2);
+    addArt(this, WIDTH / 2, 84, reason.icon).setOrigin(0.5).setScale(reason.icon === 'prod' ? 0.2 : 0.5);
     addText(this, WIDTH / 2, 108, reason.text, { size: 8, font: FONT_MINI, color: reason.color }).setOrigin(0.5);
 
     addText(this, WIDTH / 2, 142, `${run.prs}`, { size: 32, color: COLOR.ok }).setOrigin(0.5);
@@ -49,10 +49,11 @@ export class GameOverScene extends Phaser.Scene {
       ['Agents put back on task', run.fixes],
       ['Bugs squashed', run.squashed],
       ['Incidents', run.incidents],
+      ['Power-ups grabbed', run.powerups],
       ['Time', `${minutes}:${seconds}`],
     ];
     stats.forEach(([name, value], i) => {
-      const y = 248 + i * 13;
+      const y = 244 + i * 12;
       addText(this, 30, y, name, { size: 8, font: FONT_MINI, color: COLOR.dim });
       addText(this, WIDTH - 30, y, `${value}`, { size: 8, font: FONT_MINI }).setOrigin(1, 0);
     });
