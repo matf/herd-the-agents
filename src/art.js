@@ -102,14 +102,22 @@ function cylinder(ctx, cx, cy, rx, h, color, topColor = light(color, 0.35)) {
 const SKIN = '#ffdcbf';
 const BLUSH = 'rgba(255, 122, 160, 0.75)';
 
-function drawHero(ctx) {
+// wave: 0 for arms down, 1 and 2 for the two pictures of a raised, waving arm.
+function drawHero(ctx, wave = 0) {
   const hoodie = 0xffd35c;
   // legs
   rrect(ctx, 5.7, 18.5, 3, 4.5, 1.2, '#4a5a94');
   rrect(ctx, 9.3, 18.5, 3, 4.5, 1.2, '#4a5a94');
   // arms and hoodie
   dot(ctx, 4, 16.6, 1.7, dark(hoodie, 0.12));
-  dot(ctx, 14, 16.6, 1.7, dark(hoodie, 0.12));
+  if (wave) {
+    const arm = [[13, 14.8], wave === 1 ? [18.4, 8.2] : [19.6, 10.8]];
+    line(ctx, arm, INK, 3.6);
+    line(ctx, arm, dark(hoodie, 0.12), 2.3);
+    dot(ctx, arm[1][0], arm[1][1], 1.6, SKIN);
+  } else {
+    dot(ctx, 14, 16.6, 1.7, dark(hoodie, 0.12));
+  }
   rrect(ctx, 5, 12.6, 8, 8, 2.6, hex(hoodie));
   arc(ctx, 9, 17.2, 1.7, 0.1, 0.9, dark(hoodie, 0.3), 0.6); // the pocket
   line(ctx, [[8.2, 13.6], [8.2, 15]], '#ffffff', 0.5);
@@ -552,8 +560,13 @@ function drawSpeaker(ctx, on) {
   }
 }
 
+// The piece of floor the cast of the start screen stands on: n tiles each way, a third bigger than in the game.
+export const TITLE_FLOOR = { n: 5, hw: 16, hh: 32 / 3, slab: 6 };
+
 export const SPRITES = {
-  hero: { w: 18, h: 24, ax: 9, ay: 23, draw: drawHero },
+  hero: { w: 18, h: 24, ax: 9, ay: 23, draw: (ctx) => drawHero(ctx) },
+  'hero-wave1': { w: 22, h: 24, ax: 9, ay: 23, draw: (ctx) => drawHero(ctx, 1) },
+  'hero-wave2': { w: 22, h: 24, ax: 9, ay: 23, draw: (ctx) => drawHero(ctx, 2) },
   robot: robot({ body: 0xf2f5ff, accent: 0x3ddc97, glow: '#7dffd0', face: 'work' }),
   'robot-ask': robot({ body: 0x6fd6f5, accent: 0xffffff, glow: '#ffffff', face: 'ask' }),
   'robot-loop': robot({ body: 0xffbd42, accent: 0xffffff, glow: '#fff3c4', face: 'loop' }),
@@ -634,6 +647,16 @@ export const SPRITES = {
       arc(ctx, 5, 5, 3.3, 1.1, 1.5, '#fff3b0', 0.8);
     },
   },
+  'title-floor': {
+    w: 4 + 2 * TITLE_FLOOR.n * TITLE_FLOOR.hw,
+    h: 4 + 2 * TITLE_FLOOR.n * TITLE_FLOOR.hh + TITLE_FLOOR.slab,
+    ax: 2 + TITLE_FLOOR.n * TITLE_FLOOR.hw,
+    ay: 2 + TITLE_FLOOR.n * TITLE_FLOOR.hh,
+    draw: drawTitleFloor,
+  },
+  glow: { w: 64, h: 64, ax: 32, ay: 32, draw: drawGlow },
+  moon: { w: 20, h: 20, ax: 10, ay: 10, draw: drawMoon },
+  twinkle: { w: 8, h: 8, ax: 4, ay: 4, draw: (ctx) => sparkle(ctx, 4, 4, 3.6, '#ffffff') },
   'pick-coffee': { w: 14, h: 16, ax: 7, ay: 15, draw: drawCoffee },
   'pick-tokens': { w: 14, h: 15, ax: 7, ay: 14, draw: drawTokens },
   'pick-doc': { w: 14, h: 16, ax: 7, ay: 15, draw: drawDoc },
@@ -762,6 +785,170 @@ export function drawRoom(ctx, sprint = 1) {
   ctx.restore();
 }
 
+// --- The start screen: a lit piece of office floor in front of a city at night ---
+
+// The same "random" numbers every time, so the city always looks the same.
+function seeded(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const HORIZON = 166; // where the houses stand, in game pixels from the top
+export const TITLE_SKY = { w: 270, h: 250 };
+
+// The houses of the city, and their windows: `lit` ones are painted on, `blink` ones the scene switches on and off.
+export const SKYLINE = (() => {
+  const random = seeded(11);
+  const between = (a, b) => a + random() * (b - a);
+  const far = [];
+  const near = [];
+  const lit = [];
+  const blink = [];
+  for (let x = -6; x < 276; ) {
+    const w = Math.round(between(10, 19));
+    far.push({ x, w, top: HORIZON - Math.round(between(30, 62)) });
+    x += w + Math.round(between(0, 3));
+  }
+  for (let x = -4; x < 274; ) {
+    const w = Math.round(between(14, 26));
+    const top = HORIZON - Math.round(between(14, 44));
+    near.push({ x, w, top, roof: random() });
+    for (let wy = top + 3; wy < HORIZON + 14; wy += 5) {
+      for (let wx = x + 2.5; wx + 2 <= x + w - 2; wx += 4) {
+        const chance = random();
+        const window = { x: wx, y: wy, w: 2, h: 2.6, color: random() < 0.8 ? 0xffd98a : 0x8fe8ff };
+        if (chance < 0.26) lit.push(window);
+        else if (chance < 0.36 && wy < HORIZON - 12) blink.push(window);
+      }
+    }
+    x += w + Math.round(between(0, 3));
+  }
+  return { far, near, lit, blink };
+})();
+
+// How high the city reaches at x (stars stay above it).
+export function skylineTop(x) {
+  let top = HORIZON;
+  for (const house of [...SKYLINE.far, ...SKYLINE.near]) {
+    if (x >= house.x - 1 && x <= house.x + house.w + 1) top = Math.min(top, house.top - 7);
+  }
+  return top;
+}
+
+function drawTitleSky(ctx) {
+  const { w, h } = TITLE_SKY;
+  const sky = ctx.createLinearGradient(0, 0, 0, HORIZON);
+  sky.addColorStop(0, '#0b0f1a');
+  sky.addColorStop(0.4, '#151a3d');
+  sky.addColorStop(0.78, '#33276b');
+  sky.addColorStop(1, '#6a4391');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+
+  // The houses far away, a little lighter, with a few dim lights.
+  const random = seeded(5);
+  for (const { x, w: width, top } of SKYLINE.far) {
+    ctx.fillStyle = '#2c2560';
+    ctx.fillRect(x, top, width, h - top);
+    ctx.fillStyle = 'rgba(255, 217, 138, 0.35)';
+    for (let i = 0; i < 4; i++) ctx.fillRect(x + 2 + Math.floor(random() * (width - 4)), top + 3 + Math.floor(random() * 24), 1, 1.4);
+  }
+  // The houses in front, with antennas, penthouses and water tanks on their roofs.
+  for (const { x, w: width, top, roof } of SKYLINE.near) {
+    ctx.fillStyle = '#141938';
+    ctx.fillRect(x, top, width, h - top);
+    if (roof < 0.3) {
+      ctx.fillRect(x + width * 0.3, top - 6, 0.8, 6);
+      ctx.fillStyle = '#ff6373';
+      ctx.fillRect(x + width * 0.3 - 0.3, top - 7, 1.4, 1.4);
+    } else if (roof < 0.55) {
+      ctx.fillRect(x + 3, top - 4, width - 8, 4);
+    } else if (roof < 0.72) {
+      ctx.fillRect(x + width - 8, top - 5, 5, 3.4);
+      ctx.fillRect(x + width - 7.4, top - 2, 0.7, 2);
+      ctx.fillRect(x + width - 4.3, top - 2, 0.7, 2);
+    }
+    ctx.fillStyle = 'rgba(120, 130, 220, 0.25)'; // a little light on the left edge
+    ctx.fillRect(x, top, 0.7, h - top);
+  }
+  for (const { x, y, w: width, h: height, color } of SKYLINE.lit) {
+    ctx.fillStyle = hex(color);
+    ctx.fillRect(x, y, width, height);
+  }
+
+  // Mist swallows the streets, down to the colour of the page.
+  const mist = ctx.createLinearGradient(0, HORIZON - 22, 0, HORIZON + 34);
+  mist.addColorStop(0, 'rgba(11, 15, 26, 0)');
+  mist.addColorStop(0.45, 'rgba(22, 24, 58, 0.55)');
+  mist.addColorStop(1, 'rgba(11, 15, 26, 1)');
+  ctx.fillStyle = mist;
+  ctx.fillRect(0, HORIZON - 22, w, h - HORIZON + 22);
+}
+
+function drawTitleFloor(ctx) {
+  const { n, hw, hh, slab } = TITLE_FLOOR;
+  const theme = THEMES[0];
+  const at = (u, v) => [2 + n * hw + (u - v) * hw, 2 + (u + v) * hh];
+  const down = ([x, y], d) => [x, y + d];
+  const [top, right, bottom, left] = [at(0, 0), at(n, 0), at(n, n), at(0, n)];
+  const diamond = () => {
+    ctx.beginPath();
+    for (const [x, y] of [top, right, bottom, left]) ctx.lineTo(x, y);
+    ctx.closePath();
+  };
+
+  const side = mix(theme.wallLeft, 0x3a3f7a, 0.35);
+  poly(ctx, [left, bottom, down(bottom, slab), down(left, slab)], hex(side));
+  poly(ctx, [bottom, right, down(right, slab), down(bottom, slab)], dark(side, 0.3));
+
+  poly(ctx, [top, right, bottom, left], hex(theme.a), null);
+  ctx.fillStyle = hex(theme.b);
+  for (let u = 0; u < n; u++) for (let v = 0; v < n; v++) {
+    if ((u + v) % 2 === 0) continue;
+    ctx.beginPath();
+    for (const [x, y] of [at(u, v), at(u + 1, v), at(u + 1, v + 1), at(u, v + 1)]) ctx.lineTo(x, y);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Lit from above: bright in the middle, the night creeping in at the corners.
+  ctx.save();
+  diamond();
+  ctx.clip();
+  ctx.translate(bottom[0], (top[1] + bottom[1]) / 2);
+  ctx.scale(1, hh / hw);
+  const lamp = ctx.createRadialGradient(0, 0, 4, 0, 0, n * hw);
+  lamp.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+  lamp.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
+  lamp.addColorStop(0.7, 'rgba(70, 60, 160, 0)');
+  lamp.addColorStop(1, 'rgba(70, 60, 160, 0.5)');
+  ctx.fillStyle = lamp;
+  ctx.fillRect(-n * hw, -n * hw, 2 * n * hw, 2 * n * hw);
+  ctx.restore();
+  poly(ctx, [top, right, bottom, left], null, INK);
+  // A strip of light along the front edges.
+  line(ctx, [down(left, slab - 1.6), down(bottom, slab - 1.6), down(right, slab - 1.6)], '#7dffd0', 0.9);
+}
+
+function drawGlow(ctx) {
+  const glow = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  glow.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  glow.addColorStop(0.35, 'rgba(255, 255, 255, 0.45)');
+  glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, 64, 64);
+}
+
+function drawMoon(ctx) {
+  dot(ctx, 10, 10, 8, '#fff3c4', null);
+  ctx.globalCompositeOperation = 'destination-out';
+  dot(ctx, 13.4, 8, 7, '#000000', null);
+  ctx.globalCompositeOperation = 'source-over';
+}
+
 // --- Handing the pictures to Phaser ---
 
 function canvasFor(w, h) {
@@ -804,4 +991,12 @@ export function makeRoomTexture(scene, sprint) {
   const { canvas, ctx } = canvasFor(270, 480);
   drawRoom(ctx, sprint);
   scene.textures.addCanvas('room', canvas);
+}
+
+// The night sky and the city of the start screen, as a texture called 'title-sky'.
+export function makeTitleTexture(scene) {
+  if (scene.textures.exists('title-sky')) return;
+  const { canvas, ctx } = canvasFor(TITLE_SKY.w, TITLE_SKY.h);
+  drawTitleSky(ctx);
+  scene.textures.addCanvas('title-sky', canvas);
 }
